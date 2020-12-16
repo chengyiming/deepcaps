@@ -1,6 +1,7 @@
 from keras.utils import to_categorical
 import numpy as np
-
+import os
+from PIL import Image
 def load_cifar10():
     from keras.datasets import cifar10
     (x_train, y_train), (x_test, y_test) = cifar10.load_data()

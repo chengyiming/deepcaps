@@ -320,9 +320,19 @@ class ConvCapsuleLayer3D(layers.Layer):
         base_config = super(ConvCapsuleLayer3D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
-
+# votes.shape: (?, 32, 32, 8, 4, 4)
+# logit_shape: Tensor("conv_capsule_layer3d_1/stack:0", shape=(5,), dtype=int32)
+# num_dims: 6
+# input_dim: 32
+# votes_trans.shape: (8, ?, 32, 32, 4, 4)
+# logits.shape: (?, 32, 32, ?, ?)
+# activations.read(num_routing - 1).shape: (?, 32, 8, 4, 4)
 def update_routing(votes, biases, logit_shape, num_dims, input_dim, output_dim,
                    num_routing):
+    # print("votes.shape:", votes.shape)
+    # print("logit_shape:", logit_shape)
+    # print("num_dims:", num_dims)
+    # print("input_dim:", input_dim)
     if num_dims == 6:
         votes_t_shape = [3, 0, 1, 2, 4, 5]
         r_t_shape = [1, 2, 3, 0, 4, 5]
@@ -333,6 +343,7 @@ def update_routing(votes, biases, logit_shape, num_dims, input_dim, output_dim,
         raise NotImplementedError('Not implemented')
 
     votes_trans = tf.transpose(votes, votes_t_shape)
+    # print("votes_trans.shape:", votes_trans.shape)
     _, _, _, height, width, caps = votes_trans.get_shape()
 
     def _body(i, logits, activations):
@@ -373,7 +384,9 @@ def update_routing(votes, biases, logit_shape, num_dims, input_dim, output_dim,
         _body,
         loop_vars=[i, logits, activations],
         swap_memory=True)
+    print("logits.shape:", logits.shape)
     a = K.cast(activations.read(num_routing - 1), dtype='float32')
+    print("activations.read(num_routing - 1).shape:", activations.read(num_routing - 1).shape)
     return K.cast(activations.read(num_routing - 1), dtype='float32')
 
 

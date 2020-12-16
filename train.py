@@ -8,6 +8,8 @@ from deepcaps import DeepCapsNet, DeepCapsNet28, BaseCapsNet
 import os
 import imp
 
+
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 def train(model, data, hard_training, args):
     # unpacking the data
     (x_train, y_train), (x_test, y_test) = data
@@ -26,6 +28,7 @@ def train(model, data, hard_training, args):
     if(args.numGPU > 1):
         parallel_model = multi_gpu_model(model, gpus=args.numGPU)
     else:
+        print("只有一个")
         parallel_model = model
 
     if(not hard_training):
@@ -88,7 +91,7 @@ class args:
     t = False
     w = None
     ep_num = 0
-    dataset = "MNIST"
+    dataset = "CIFAR10"
 
 os.makedirs(args.save_dir, exist_ok=True)
 try:
@@ -119,8 +122,8 @@ elif(args.dataset == "SVHN"):
 
 
 
-# model, eval_model = DeepCapsNet(input_shape=x_train.shape[1:], n_class=y_train.shape[1], routings=args.routings)  # for 64*64
-model, eval_model = DeepCapsNet28(input_shape=x_train.shape[1:], n_class=y_train.shape[1], routings=args.routings)  #for 28*28
+model, eval_model = DeepCapsNet(input_shape=x_train.shape[1:], n_class=y_train.shape[1], routings=args.routings)  # for 64*64
+# model, eval_model = DeepCapsNet28(input_shape=x_train.shape[1:], n_class=y_train.shape[1], routings=args.routings)  #for 28*28
 
 # plot_model(model, show_shapes=True,to_file=args.save_dir + '/model.png')
 
