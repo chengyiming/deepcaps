@@ -1,4 +1,4 @@
-
+import numpy as np
 
 def test(model_path_file, model_path_weight, data, args):
 
