@@ -9,7 +9,7 @@ import os
 import imp
 
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 def train(model, data, hard_training, args):
     # unpacking the data
     (x_train, y_train), (x_test, y_test) = data
@@ -129,9 +129,10 @@ model, eval_model = DeepCapsNet(input_shape=x_train.shape[1:], n_class=y_train.s
 
 
 
-################  training  #################  
+################  training  #################
 appendix = ""
-train(model=model, data=((x_train, y_train), (x_test, y_test)), hard_training=False, args=args)
+# model.load_weights(args.save_dir + '/best_weights_1' + appendix + '.h5')
+# train(model=model, data=((x_train, y_train), (x_test, y_test)), hard_training=False, args=args)
 
 model.load_weights(args.save_dir + '/best_weights_2' + appendix + '.h5')
 appendix = "x"

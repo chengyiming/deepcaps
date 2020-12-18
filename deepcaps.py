@@ -58,8 +58,9 @@ def DeepCapsNet(input_shape, n_class, routings):
 
 
     la = FlattenCaps()(l2)
-    lb = FlattenCaps()(l1)
-    l = layers.Concatenate(axis=-2)([la, lb])
+    # lb = FlattenCaps()(l1)
+    # l = layers.Concatenate(axis=-2)([la, lb])
+    l = la
 
 #     l = Dropout(0.4)(l)
     digits_caps = CapsuleLayer(num_capsule=n_class, dim_capsule=32, routings=routings, channels=0, name='digit_caps')(l)
