@@ -75,22 +75,22 @@ def _shortcut(input, residual):
     # Expand channels of shortcut to match residual.
     # Stride appropriately to match residual (width, height)
     # Should be int if network architecture is correctly configured.
-    # input_shape = K.int_shape(input)
-    # residual_shape = K.int_shape(residual)
-    # stride_width = int(round(input_shape[ROW_AXIS] / residual_shape[ROW_AXIS]))
-    # stride_height = int(round(input_shape[COL_AXIS] / residual_shape[COL_AXIS]))
-    # equal_channels = input_shape[CHANNEL_AXIS] == residual_shape[CHANNEL_AXIS]
-    #
-    # shortcut = input
-    # # 1 X 1 conv if shape is different. Else identity.
-    # if stride_width > 1 or stride_height > 1 or not equal_channels:
-    #     shortcut = Conv2D(filters=residual_shape[CHANNEL_AXIS],
-    #                       kernel_size=(1, 1),
-    #                       strides=(stride_width, stride_height),
-    #                       padding="valid",
-    #                       kernel_initializer="he_normal",
-    #                       kernel_regularizer=l2(0.0001))(input)
+    input_shape = K.int_shape(input)
+    residual_shape = K.int_shape(residual)
+    stride_width = int(round(input_shape[ROW_AXIS] / residual_shape[ROW_AXIS]))
+    stride_height = int(round(input_shape[COL_AXIS] / residual_shape[COL_AXIS]))
+    equal_channels = input_shape[CHANNEL_AXIS] == residual_shape[CHANNEL_AXIS]
+
     shortcut = input
+    # 1 X 1 conv if shape is different. Else identity.
+    if stride_width > 1 or stride_height > 1 or not equal_channels:
+        shortcut = Conv2D(filters=residual_shape[CHANNEL_AXIS],
+                          kernel_size=(1, 1),
+                          strides=(stride_width, stride_height),
+                          padding="valid",
+                          kernel_initializer="he_normal",
+                          kernel_regularizer=l2(0.0001))(input)
+
     return add([shortcut, residual])
 
 
@@ -99,50 +99,42 @@ def _residual_block(block_function, filters, num_capsule, repetitions, is_first_
     """
     def f(input):
         for i in range(repetitions):
-            is_first_block_sign = False
             init_strides = (1, 1)
             if i == 0 and not is_first_layer:
                 init_strides = (2, 2)
-                is_first_block_sign = True
             input = block_function(filters=filters, init_strides=init_strides, num_capsule=num_capsule,
-                                   is_first_block_of_first_layer=(is_first_layer and i == 0),
-                                   is_first_block= is_first_block_sign)(input)
+                                   is_first_layer=is_first_layer,
+                                   is_first_block= (i==0))(input)
         return input
 
     return f
 
 
-def basic_block(filters, init_strides=(1, 1), num_capsule=8, is_first_block_of_first_layer=False, is_first_block = False):
+def basic_block(filters, init_strides=(1, 1), num_capsule=8, is_first_layer=False, is_first_block = False):
     """Basic 3 X 3 convolution blocks for use on resnets with layers <= 34.
     Follows improved proposed scheme in http://arxiv.org/pdf/1603.05027v2.pdf
     """
     def f(input):
-
-        if is_first_block_of_first_layer:
+        if is_first_layer and is_first_block:
             # don't repeat bn->relu since we just did bn->relu->maxpool
             conv1 = Conv2D(filters=filters, kernel_size=(3, 3),
                            strides=init_strides,
                            padding="same",
                            kernel_initializer="he_normal",
                            kernel_regularizer=l2(1e-4))(input)
+        elif not (is_first_layer or is_first_block):
+            bn_relu_input = _bn_relu(input)
+            reshaped_input = Lambda(lambda x:
+                           K.reshape(x, (-1, input.shape[1], input.shape[2], num_capsule, 8)))(bn_relu_input)
+            caps3D = ConvCapsuleLayer3D(kernel_size=3, num_capsule=num_capsule, num_atoms=8, strides=1,
+                                        padding='same', routings=3)(reshaped_input)
+            print("caps3D.shape:", caps3D.shape)
+            # 再次进行reshape
+            conv1 = Lambda(lambda x:
+                           K.reshape(x, (-1, caps3D.shape[1], caps3D.shape[2], caps3D.shape[3] * caps3D.shape[4])))(caps3D)
         else:
             conv1 = _bn_relu_conv(filters=filters, kernel_size=(3, 3),
                                   strides=init_strides)(input)
-            # 在这里需要加上convcaps3D卷积
-            if is_first_block:
-                print("input.shape:", input.shape)
-                print("input.shape[0]", input.shape[0])
-                # 对input进行reshape
-                input = Lambda(lambda x:
-                               K.reshape(x, (-1, input.shape[1], input.shape[2], num_capsule, 8)))(input)
-                caps3D = ConvCapsuleLayer3D(kernel_size=3, num_capsule=num_capsule * 2, num_atoms=8, strides=2,
-                                            padding='same', routings=3)(input)
-                print("caps3D.shape:", caps3D.shape)
-                # 再次进行reshape
-                input = Lambda(lambda x:
-                               K.reshape(x, (-1, caps3D.shape[1], caps3D.shape[2], caps3D.shape[3] * caps3D.shape[4])))(
-                    caps3D)
-
         residual = _bn_relu_conv(filters=filters, kernel_size=(3, 3))(conv1)
         return _shortcut(input, residual)
 
@@ -236,8 +228,7 @@ class ResnetBuilder(object):
             block = _residual_block(block_fn, filters=filters, num_capsule = num_capsule,
                                     repetitions=r, is_first_layer=(i == 0))(block)
             print("block.shape:", block.shape)
-            if i != 0:
-                num_capsule *= 2
+            num_capsule *= 2
             filters *= 2
 
         # Last activation

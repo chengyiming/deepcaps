@@ -9,7 +9,7 @@ import os
 import imp
 
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 def train(model, data, hard_training, args):
     # unpacking the data
     (x_train, y_train), (x_test, y_test) = data
@@ -56,8 +56,8 @@ def train(model, data, hard_training, args):
                                  initial_epoch=int(args.ep_num),
                                  shuffle=True)
 
-    parallel_model.save(args.save_dir + '/trained_model_multi_gpu.h5')
-    model.save(args.save_dir + '/trained_model.h5')
+    # parallel_model.save(args.save_dir + '/trained_model_multi_gpu.h5')
+    #model.save(args.save_dir + '/trained_model.h5')
 
     return parallel_model
 
@@ -78,7 +78,7 @@ def test(eval_model, data):
 class args:
     numGPU = 1
     epochs = 100
-    batch_size = 256
+    batch_size = 128
     lr = 0.001
     lr_decay = 0.96
     lam_recon = 0.4
@@ -87,7 +87,7 @@ class args:
     shift_fraction = 0.1
     debug = False
     digit = 5
-    save_dir = 'model/CIFAR10/13'
+    save_dir = 'model/CIFAR10/version3-1-num1'
     t = False
     w = None
     ep_num = 0
@@ -131,12 +131,11 @@ model, eval_model = DeepCapsNet(input_shape=x_train.shape[1:], n_class=y_train.s
 
 ################  training  #################
 appendix = ""
-# model.load_weights(args.save_dir + '/best_weights_1' + appendix + '.h5')
-# train(model=model, data=((x_train, y_train), (x_test, y_test)), hard_training=False, args=args)
+train(model=model, data=((x_train, y_train), (x_test, y_test)), hard_training=False, args=args)
 
-# model.load_weights(args.save_dir + '/best_weights_2' + appendix + '.h5')
-# appendix = "x"
-# train(model=model, data=((x_train, y_train), (x_test, y_test)), hard_training=True, args=args)
+model.load_weights(args.save_dir + '/best_weights_2' + appendix + '.h5')
+appendix = "x"
+train(model=model, data=((x_train, y_train), (x_test, y_test)), hard_training=True, args=args)
 #############################################
 
 
